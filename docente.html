@@ -63,6 +63,10 @@ textarea{min-height:140px;resize:vertical;font-family:var(--f-body)}
 .chip{font:inherit;font-size:14px;font-weight:600;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer;min-height:36px}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .chip small{font-family:var(--f-mono);opacity:.7;margin-left:4px}
+/* juego */
+.games{display:flex;gap:4px;background:var(--sunk);border-radius:14px;padding:4px;max-width:420px}
+.gm{flex:1;font:inherit;font-weight:700;font-size:15px;border:0;background:none;color:var(--muted);border-radius:10px;padding:9px 12px;cursor:pointer;min-height:42px}
+.gm[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px var(--shadow)}
 /* resumen */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:2px}
@@ -118,7 +122,7 @@ details.more>summary::-webkit-details-marker{display:none}
 <body>
 <div class="wrap">
   <header class="top">
-    <h1><small>Átomo a Átomo</small>Panel docente</h1>
+    <h1><small>Átomo a Átomo · Mol a Mol</small>Panel docente</h1>
     <span class="who" id="who"></span>
     <button type="button" class="btn" id="logout" hidden>Salir</button>
   </header>
@@ -138,6 +142,7 @@ details.more>summary::-webkit-details-marker{display:none}
 
   <!-- PANEL -->
   <main id="vPanel" hidden style="display:flex;flex-direction:column;gap:18px">
+    <div class="games" id="games" role="group" aria-label="Juego"></div>
     <div class="groups" id="groups" role="group" aria-label="Grupos"></div>
     <div class="stats" id="stats"></div>
 
@@ -182,7 +187,7 @@ details.more>summary::-webkit-details-marker{display:none}
           <th><button type="button" data-sort="stars">Estrellas</button></th>
           <th><button type="button" data-sort="xp">XP</button></th>
           <th><button type="button" data-sort="units">Unidades</button></th>
-          <th><button type="button" data-sort="album">Álbum</button></th>
+          <th><button type="button" data-sort="album" id="thAlb">Álbum</button></th>
           <th><button type="button" data-sort="t">Última vez</button></th>
         </tr></thead>
         <tbody id="tbody"></tbody>
@@ -211,9 +216,23 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 /* ---------- datos del juego (deben coincidir con index.html) ---------- */
-const BLOCKS=[["b1",1,"El átomo por dentro"],["b2",2,"Uniones entre átomos"],["b3",3,"La tabla periódica"]];
-const UNITS=[["part","b1","Partículas del átomo",3],["iso","b1","Isótopos",3],["ion","b1","Iones",3],["niv","b1","Niveles de energía",3],["lewa","b2","Lewis de átomos",3],["en","b2","Electronegatividad y tipo de enlace",3],["pol","b2","Polaridad de moléculas",1],["form","b2","Fórmula molecular",3],["lewm","b2","Lewis de moléculas",3],["gp","b3","Grupo y período",3],["clas","b3","Clasificación de los elementos",3],["prop","b3","Propiedades periódicas",3],["sal","b3","Sales y compuestos iónicos",3]];
-const UNLOCK=5, MAXSTARS=UNITS.reduce((a,u)=>a+3*u[3],0)+3*BLOCKS.length;
+/* datos de cada juego: deben coincidir con index.html y mol.html */
+const GAMES={
+  atomo:{n:"Átomo a Átomo",pf:"p",xf:"xp",
+    blocks:[["b1",1,"El átomo por dentro"],["b2",2,"Uniones entre átomos"],["b3",3,"La tabla periódica"]],
+    units:[["part","b1","Partículas del átomo",3],["iso","b1","Isótopos",3],["ion","b1","Iones",3],["niv","b1","Niveles de energía",3],["lewa","b2","Lewis de átomos",3],["en","b2","Electronegatividad y tipo de enlace",3],["pol","b2","Polaridad de moléculas",1],["form","b2","Fórmula molecular",3],["lewm","b2","Lewis de moléculas",3],["gp","b3","Grupo y período",3],["clas","b3","Clasificación de los elementos",3],["prop","b3","Propiedades periódicas",3],["sal","b3","Sales y compuestos iónicos",3]],
+    album:p=>Math.min(p&&typeof p.album==="object"?Object.keys(p.album).length:0,118),albumMax:118,albumTxt:"elementos"},
+  mol:{n:"Mol a Mol",pf:"pm",xf:"xpm",
+    blocks:[["b1",1,"Cantidad de sustancia"],["b2",2,"Reacciones"],["b3",3,"Rendimiento de una reacción"]],
+    units:[["mm","b1","Masa molar",3],["eq","b1","Ecuación de cantidad de sustancia",3],["gmol","b1","Masa ⇄ moles",3],["part","b1","Moles ⇄ partículas",3],["bal","b2","Balanceo por tanteo",3],["molmol","b2","Razón molar",3],["gg","b2","Masa a masa",3],["lim","b3","Reactivo limitante",3],["rend","b3","Rendimiento",3]],
+    album:p=>(p&&typeof p.subs==="object"?Object.keys(p.subs).length:0)+(p&&typeof p.rxs==="object"?Object.keys(p.rxs).length:0),albumMax:120,albumTxt:"sustancias y reacciones"}
+};
+let GAME="atomo",BLOCKS=GAMES.atomo.blocks,UNITS=GAMES.atomo.units,RAW=[];
+
+/* el Desafío (nivel 3 y desafío de bloque) da hasta 4 estrellas */
+const lvMax=(L,l)=>L===3&&l===3?4:3, uMax=L=>{let m=0;for(let l=1;l<=L;l++)m+=lvMax(L,l);return m};
+const UNLOCK=5;
+const MAXST=()=>UNITS.reduce((a,u)=>a+uMax(u[3]),0)+4*BLOCKS.length;
 const ALPHA="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const NAMES_KEY="atomo.docente.nombres";
 const DOCENTE="docente@atomo-fa51e.app";   // usuario fijo: el panel solo pide la contraseña
@@ -235,25 +254,26 @@ const ferr=e=>FERR[e&&e.code]||("Error: "+(e&&e.message||e));
 let STUDENTS=[], GROUP="__all", SORT={k:"name",dir:1}, OPEN=null;
 
 function parseStudent(d){
-  const x=d.data();let p={};try{p=x.p?JSON.parse(x.p):{}}catch(e){p={}}
+  const g=GAMES[GAME],x=d.data();let p={};try{p=x[g.pf]?JSON.parse(x[g.pf]):{}}catch(e){p={}}
   const stars=p&&typeof p.stars==="object"?p.stars:{};
-  const st=k=>{const v=stars[k];return Number.isInteger(v)&&v>=0&&v<=3?v:0};
-  const per=UNITS.map(([id,,name,L])=>{let s=0;for(let l=1;l<=L;l++)s+=st(`${id}-${l}`);return{id,name,s,max:3*L,need:Math.min(UNLOCK,2*L)}});
+  const st=k=>{const v=stars[k];return Number.isInteger(v)&&v>=0&&v<=4?v:0};
+  const per=UNITS.map(([id,,name,L])=>{let s=0;for(let l=1;l<=L;l++)s+=st(`${id}-${l}`);return{id,name,s,max:uMax(L),need:Math.min(UNLOCK,2*L)}});
   const blocks=BLOCKS.map(([id])=>st("B-"+id));
   const total=per.reduce((a,u)=>a+u.s,0)+blocks.reduce((a,b)=>a+b,0);
-  const album=p&&typeof p.album==="object"?Object.keys(p.album).length:0;
-  return{code:d.id,g:typeof x.g==="string"?x.g:"",xp:Number(x.xp)||0,t:x.t&&x.t.toDate?x.t.toDate():null,per,blocks,stars:total,units:per.filter(u=>u.s>=u.need).length,album:Math.min(album,118),plays:Number(p.plays)||0};
+  return{code:d.id,g:typeof x.g==="string"?x.g:"",xp:Number(x[g.xf])||0,t:x.t&&x.t.toDate?x.t.toDate():null,per,blocks,stars:total,units:per.filter(u=>u.s>=u.need).length,album:g.album(p),plays:Number(p.plays)||0};
 }
 async function load(){
   $("panelMsg").className="msg";$("panelMsg").textContent="Cargando…";
-  try{const snap=await getDocs(collection(db,"alumnos"));STUDENTS=snap.docs.map(parseStudent);$("panelMsg").textContent="";render()}
+  try{const snap=await getDocs(collection(db,"alumnos"));RAW=snap.docs;STUDENTS=RAW.map(parseStudent);$("panelMsg").textContent="";render()}
   catch(e){$("panelMsg").className="msg bad";$("panelMsg").textContent=ferr(e)}
 }
 const groupsOf=()=>[...new Set(STUDENTS.map(s=>s.g))].sort((a,b)=>a.localeCompare(b,"es"));
 const visible=()=>STUDENTS.filter(s=>GROUP==="__all"||s.g===GROUP);
 
+function setGame(g){GAME=g;BLOCKS=GAMES[g].blocks;UNITS=GAMES[g].units;OPEN=null;STUDENTS=RAW.map(parseStudent);render()}
 function render(){
-  const gs=groupsOf();if(GROUP!=="__all"&&!gs.includes(GROUP))GROUP="__all";
+  $("games").innerHTML=Object.keys(GAMES).map(k=>`<button type="button" class="gm" data-game="${k}" aria-pressed="${GAME===k}">${GAMES[k].n}</button>`).join("");
+    const gs=groupsOf();if(GROUP!=="__all"&&!gs.includes(GROUP))GROUP="__all";
   $("groups").innerHTML=`<button type="button" class="chip" data-g="__all" aria-pressed="${GROUP==="__all"}">Todos<small>${STUDENTS.length}</small></button>`+
     gs.map(g=>`<button type="button" class="chip" data-g="${esc(g)}" aria-pressed="${GROUP===g}">${esc(g||"Sin grupo")}<small>${STUDENTS.filter(s=>s.g===g).length}</small></button>`).join("");
   const v=visible(),week=Date.now()-7*864e5;
@@ -262,7 +282,7 @@ function render(){
   const never=v.filter(s=>!s.plays).length;
   $("stats").innerHTML=`<div class="stat"><b>${v.length}</b><span>estudiantes${GROUP==="__all"?"":" en "+esc(GROUP)}</span></div>
     <div class="stat"><b>${active}</b><span>jugaron en los últimos 7 días</span></div>
-    <div class="stat"><b>${avg.toFixed(1).replace(".",",")}</b><span>estrellas promedio, de ${MAXSTARS}</span></div>
+    <div class="stat"><b>${avg.toFixed(1).replace(".",",")}</b><span>estrellas promedio, de ${MAXST()}</span></div>
     <div class="stat"><b>${never}</b><span>todavía no jugaron</span></div>`;
   $("delGroup").hidden=GROUP==="__all";$("printBtn").textContent=GROUP==="__all"?"Imprimir tarjetas (todos)":"Imprimir tarjetas del grupo";
   const key=s=>SORT.k==="name"?(NAMES[s.code]||"~"+s.code).toLowerCase():SORT.k==="t"?(s.t?s.t.getTime():0):s[SORT.k];
@@ -270,24 +290,25 @@ function render(){
   document.querySelectorAll("th button").forEach(b=>{if(b.dataset.sort===SORT.k)b.setAttribute("aria-sort",SORT.dir>0?"ascending":"descending");else b.removeAttribute("aria-sort")});
   if(!rows.length){$("tbody").innerHTML=`<tr><td colspan="8" class="empty">${STUDENTS.length?"No hay estudiantes en este grupo.":"Todavía no hay códigos. Toca «Crear códigos» para empezar."}</td></tr>`;return}
   $("tbody").innerHTML=rows.map(s=>{
-    const pct=Math.round(s.stars/MAXSTARS*100),open=OPEN===s.code;
+    const pct=Math.round(s.stars/MAXST()*100),open=OPEN===s.code;
     const state=!s.plays?'<span class="pill off">sin jugar</span>':s.t&&s.t.getTime()>week?'<span class="pill on">activo</span>':'<span class="pill mid">inactivo</span>';
     let h=`<tr class="st-row${open?" open":""}" data-code="${s.code}" aria-expanded="${open}">
       <td><input class="name-in" data-name="${s.code}" value="${esc(NAMES[s.code]||"")}" placeholder="sin nombre" aria-label="Nombre del código ${s.code}" maxlength="60"></td>
       <td class="code">${s.code}</td><td>${esc(s.g)}</td>
       <td><div class="starbar"><span class="mono">${s.stars}</span><span class="bar"><i style="width:${pct}%"></i></span></div></td>
-      <td class="num">${s.xp}</td><td class="num">${s.units}/${UNITS.length}</td><td class="num">${s.album}/118</td>
+      <td class="num">${s.xp}</td><td class="num">${s.units}/${UNITS.length}</td><td class="num">${s.album}/${GAMES[GAME].albumMax}</td>
       <td style="white-space:nowrap">${state} <span class="muted" style="font-size:13px">${ago(s.t)}</span></td></tr>`;
     if(open){
-      let u="";BLOCKS.forEach(([bid,bn,bname],bi)=>{u+=`<div class="blk">Bloque ${bn} · ${esc(bname)} · desafío ${s.blocks[bi]}/3</div>`;
+      let u="";BLOCKS.forEach(([bid,bn,bname],bi)=>{u+=`<div class="blk">Bloque ${bn} · ${esc(bname)} · desafío ${s.blocks[bi]}/4</div>`;
         s.per.forEach((x,i)=>{if(UNITS[i][1]!==bid)return;u+=`<div class="unit"><span>${i+1}. ${esc(x.name)}</span><span class="us">${x.s}/${x.max}</span><span class="ub"><i style="width:${x.s/x.max*100}%"></i></span></div>`})});
       h+=`<tr class="detail"><td colspan="8"><div class="units">${u}</div>
-        <div class="dactions"><button type="button" class="btn danger" data-act="reset" data-code="${s.code}">Reiniciar su progreso</button><button type="button" class="btn danger" data-act="del" data-code="${s.code}">Eliminar código</button><span class="muted" style="font-size:13px">Rondas jugadas: ${s.plays}</span></div></td></tr>`;
+        <div class="dactions"><button type="button" class="btn danger" data-act="reset" data-code="${s.code}">Reiniciar su progreso en ${GAMES[GAME].n}</button><button type="button" class="btn danger" data-act="del" data-code="${s.code}">Eliminar código</button><span class="muted" style="font-size:13px">Rondas jugadas: ${s.plays}</span></div></td></tr>`;
     }
     return h}).join("");
 }
 
 /* ---------- eventos del panel ---------- */
+$("games").addEventListener("click",e=>{const b=e.target.closest("[data-game]");if(b&&b.dataset.game!==GAME)setGame(b.dataset.game)});
 $("groups").addEventListener("click",e=>{const b=e.target.closest("[data-g]");if(!b)return;GROUP=b.dataset.g;OPEN=null;render()});
 document.querySelector("thead").addEventListener("click",e=>{const b=e.target.closest("[data-sort]");if(!b)return;const k=b.dataset.sort;SORT=SORT.k===k?{k,dir:-SORT.dir}:{k,dir:["name","code","g"].includes(k)?1:-1};render()});
 $("tbody").addEventListener("click",async e=>{
@@ -296,7 +317,7 @@ $("tbody").addEventListener("click",async e=>{
   if(a){const code=a.dataset.code;
     if(!a.classList.contains("sure")){a.classList.add("sure");a.textContent=a.dataset.act==="reset"?"Confirmar: reiniciar":"Confirmar: eliminar";return}
     a.disabled=true;
-    try{if(a.dataset.act==="reset"){await updateDoc(doc(db,"alumnos",code),{p:"",xp:0,t:serverTimestamp()});toast(`Progreso de ${code} reiniciado`)}
+    try{if(a.dataset.act==="reset"){const g=GAMES[GAME];await updateDoc(doc(db,"alumnos",code),{[g.pf]:"",[g.xf]:0,t:serverTimestamp()});toast(`Progreso de ${code} en ${g.n} reiniciado`)}
       else{await deleteDoc(doc(db,"alumnos",code));delete NAMES[code];saveNames();OPEN=null;toast(`Código ${code} eliminado`)}
       await load()}catch(err){a.disabled=false;$("panelMsg").className="msg bad";$("panelMsg").textContent=ferr(err)}
     return}
@@ -320,7 +341,7 @@ $("createBtn").addEventListener("click",async()=>{
   const taken=new Set(STUDENTS.map(s=>s.code)),made=[];
   try{
     for(let i=0;i<n;i+=400){const batch=writeBatch(db);
-      for(let k=i;k<Math.min(n,i+400);k++){const c=newCode(taken);made.push([c,names[k]||""]);batch.set(doc(db,"alumnos",c),{g,p:"",xp:0,t:serverTimestamp(),c:serverTimestamp()})}
+      for(let k=i;k<Math.min(n,i+400);k++){const c=newCode(taken);made.push([c,names[k]||""]);batch.set(doc(db,"alumnos",c),{g,p:"",xp:0,pm:"",xpm:0,t:serverTimestamp(),c:serverTimestamp()})}
       await batch.commit()}
     made.forEach(([c,nm])=>{if(nm)NAMES[c]=nm});saveNames();
     m.className="msg ok";m.textContent=`Listo: ${made.length} códigos creados en «${g}».`;$("newNames").value="";$("newCount").value="";
@@ -336,7 +357,7 @@ $("createBtn").addEventListener("click",async()=>{
 /* imprimir tarjetas */
 function printSlips(list){
   const url=new URL("./",location.href).href;
-  $("printArea").innerHTML=list.map(s=>`<div class="slip"><small>Átomo a Átomo · ${esc(s.g)}</small><div>${esc(NAMES[s.code]||"")}</div><b>${s.code}</b><small>Entra en ${esc(url)} y escribe tu código. No se lo pases a nadie.</small></div>`).join("");
+  $("printArea").innerHTML=list.map(s=>`<div class="slip"><small>Átomo a Átomo y Mol a Mol · ${esc(s.g)}</small><div>${esc(NAMES[s.code]||"")}</div><b>${s.code}</b><small>Átomo a Átomo: ${esc(url)}<br>Mol a Mol: ${esc(url)}mol.html<br>El mismo código sirve para los dos. No se lo pases a nadie.</small></div>`).join("");
   window.print();
 }
 $("printBtn").addEventListener("click",()=>{const v=visible();if(!v.length){toast("No hay códigos para imprimir");return}printSlips([...v].sort((a,b)=>(NAMES[a.code]||a.code).localeCompare(NAMES[b.code]||b.code,"es")))});
@@ -345,11 +366,11 @@ $("printBtn").addEventListener("click",()=>{const v=visible();if(!v.length){toas
 $("csvBtn").addEventListener("click",()=>{
   const head=["codigo","nombre","grupo","estrellas","xp","unidades","album","ultima_vez",...UNITS.map(u=>u[0])];
   const rows=visible().map(s=>[s.code,NAMES[s.code]||"",s.g,s.stars,s.xp,s.units,s.album,s.t?s.t.toISOString():"",...s.per.map(u=>u.s)]);
-  download(`atomo-progreso-${new Date().toISOString().slice(0,10)}.csv`,"﻿"+[head,...rows].map(r=>r.map(csvCell).join(";")).join("\n"),"text/csv");
+  download(`${GAME}-progreso-${new Date().toISOString().slice(0,10)}.csv`,"﻿"+[head,...rows].map(r=>r.map(csvCell).join(";")).join("\n"),"text/csv");
 });
 $("jsonBtn").addEventListener("click",async()=>{
   try{const snap=await getDocs(collection(db,"alumnos"));
-    const all=snap.docs.map(d=>{const x=d.data();return{codigo:d.id,nombre:NAMES[d.id]||"",grupo:x.g||"",xp:x.xp||0,progreso:x.p||"",ultima_vez:x.t&&x.t.toDate?x.t.toDate().toISOString():null}});
+    const all=snap.docs.map(d=>{const x=d.data();return{codigo:d.id,nombre:NAMES[d.id]||"",grupo:x.g||"",atomo:{xp:x.xp||0,progreso:x.p||""},mol:{xp:x.xpm||0,progreso:x.pm||""},ultima_vez:x.t&&x.t.toDate?x.t.toDate().toISOString():null}});
     download(`atomo-copia-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({fecha:new Date().toISOString(),alumnos:all},null,1),"application/json");
   }catch(err){$("panelMsg").className="msg bad";$("panelMsg").textContent=ferr(err)}
 });

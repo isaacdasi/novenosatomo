@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="1.1.1">
+<meta http-equiv="Cache-Control" content="no-cache">
+<!--
+  SEGURIDAD · Política de seguridad de contenido (CSP)
+  Solo se ejecuta el código de esta página (la etiqueta script de abajo) si coincide EXACTAMENTE con la huella sha256,
+  y solo se cargan los archivos de Firebase de la carpeta https://www.gstatic.com/firebasejs/10.12.2/ (nada más de www.gstatic.com).
+  IMPORTANTE: si cambias aunque sea un carácter del código (dentro de la etiqueta script), hay que poner la huella nueva.
+  Si cambias la versión de Firebase en los «import», cambia también la carpeta en script-src.
+  Cómo sacar la huella nueva: abre la página en Chrome, pulsa F12 → Consola. El error en rojo dice
+  «…a hash ('sha256-…')…». Copia ese sha256-… y ponlo en lugar del de abajo (entre comillas simples).
+  También puedes ejecutar «python3 actualizar_huella.py vivo.html» o pedírselo a Claude.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kEu+5ieh+Jdrxy1PupdHhGO+MSwg2rJUKRslsG3jYm0=' https://www.gstatic.com/firebasejs/10.12.2/; script-src-attr 'none'; connect-src https://*.googleapis.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="robots" content="noindex">
+<title>En vivo · Átomo a Átomo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Juego en vivo, pantalla del estudiante (versión 1.1.1). La pregunta y las opciones se leen en el proyector:
+   acá solo van los colores con su forma (siempre en el mismo lugar), el tiempo y el resultado.
+   De la nube llegan solo números. */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --sunk:#E7EBF0; --ink:#151E28; --muted:#5B6774; --line:#D2D9E1;
+  --ok:#1E8A4C; --ok-soft:#DCF3E5; --bad:#CC3528; --bad-soft:#FCE3E0; --gold:#C58A00; --gold-soft:#FCEFC7;
+  --o0:#D7443A; --o1:#2D66D2; --o2:#C98A00; --o3:#1F8A55;
+  --oro:#D4A017; --plata:#9AA6B2; --bronce:#B8733A;
+  --shadow:rgba(10,16,24,.2);
+  --f-display:"Bricolage Grotesque",ui-rounded,"Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E141A; --surface:#161E26; --sunk:#1E2831; --ink:#E6ECF1; --muted:#98A5B1; --line:#2C3845;
+  --ok:#4CCB86; --ok-soft:#123323; --bad:#FF7B6E; --bad-soft:#3E1B17; --gold:#F2C14E; --gold-soft:#3A2C08; --shadow:rgba(0,0,0,.5);
+  color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{background:var(--bg);color:var(--ink);margin:0;min-height:100%}
+body{font:16px/1.45 var(--f-body);-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:var(--f-display);font-weight:800;letter-spacing:-.015em;margin:0;line-height:1.1;text-wrap:balance}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.mono{font-family:var(--f-mono)}
+.wrap{max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding:12px max(16px,env(safe-area-inset-right,0px)) 20px max(16px,env(safe-area-inset-left,0px))}
+.top{display:flex;align-items:center;gap:10px;min-height:48px}
+.brand{font-family:var(--f-display);font-weight:800;font-size:18px;flex:1;display:flex;align-items:center;gap:8px}
+.live{font-family:var(--f-mono);font-size:11px;font-weight:700;letter-spacing:.12em;background:var(--bad);color:#fff;border-radius:6px;padding:2px 7px}
+.me{font-family:var(--f-mono);font-size:13px;font-weight:700;background:var(--sunk);border-radius:999px;padding:5px 11px;max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score{font-family:var(--f-mono);font-weight:700;font-size:15px}
+main{flex:1;display:flex;flex-direction:column;gap:14px;padding-top:8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.center{align-items:center;text-align:center;justify-content:center}
+.grow{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 18px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);font-weight:700;font-size:16px;cursor:pointer;touch-action:manipulation}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.btn.big{min-height:56px;font-size:18px;width:100%}
+.btn.link{border:0;background:none;text-decoration:underline;text-underline-offset:3px;color:var(--muted);font-weight:500;min-height:44px}
+.btn:disabled{opacity:.5;cursor:default}
+.muted{color:var(--muted)}
+.msg{min-height:22px;margin:0;font-size:14px;font-weight:600}
+.msg.bad{color:var(--bad)} .msg.ok{color:var(--ok)}
+/* entrar */
+.codes{display:flex;flex-direction:column;gap:8px}
+.crow{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:14px;padding:8px 8px 8px 14px;background:var(--bg)}
+.crow b{font-family:var(--f-mono);font-size:22px;letter-spacing:.18em;flex:1}
+.crow .st{font-size:13px;font-weight:700}
+.crow .st.ok{color:var(--ok)} .crow .st.bad{color:var(--bad)}
+.crow button{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-size:18px}
+.addrow{display:flex;gap:8px}
+.addrow input{flex:1;min-width:0;font-family:var(--f-mono);font-size:24px;letter-spacing:.2em;text-transform:uppercase;text-align:center;border:2px solid var(--line);border-radius:14px;background:var(--bg);color:var(--ink);padding:8px}
+.addrow input:focus{outline:none;border-color:var(--ink)}
+.hint{font-size:14px;color:var(--muted);margin:0}
+/* tiempo */
+.timer{display:flex;align-items:center;gap:10px}
+.tbar{flex:1;height:12px;border-radius:6px;background:var(--sunk);overflow:hidden}
+.tbar i{display:block;height:100%;background:var(--ink);border-radius:6px;transition:width .25s linear}
+.tbar.low i{background:var(--bad)}
+.tnum{font-family:var(--f-display);font-weight:800;font-size:30px;min-width:52px;text-align:right;font-variant-numeric:tabular-nums}
+.extra{align-self:center;font-weight:800;background:var(--gold-soft);color:var(--ink);border:2px solid var(--gold);border-radius:999px;padding:4px 14px;animation:pop .5s}
+.qinfo{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);font-weight:600}
+.dbl{background:var(--gold);color:#1B1300;border-radius:6px;padding:0 7px;font-weight:800;font-size:12px;letter-spacing:.06em}
+/* opciones */
+.opts{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;flex:1;min-height:300px}
+.opts.n2{grid-template-rows:1fr}
+.opts .vac{visibility:hidden}
+.opt{position:relative;border:0;border-radius:18px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px 10px;font-weight:700;font-size:17px;line-height:1.2;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.22);touch-action:manipulation;min-height:120px;text-align:center}
+.opt svg{width:64px!important;height:64px!important}
+.opt:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.22)}
+.opt svg{width:40px;height:40px;flex:0 0 auto}
+.opt.c0{background:var(--o0)} .opt.c1{background:var(--o1)} .opt.c2{background:var(--o2)} .opt.c3{background:var(--o3)}
+.opt.sel{outline:5px solid var(--ink);outline-offset:-5px}
+.opt.sel::after{content:"✓";position:absolute;top:8px;right:10px;width:28px;height:28px;border-radius:50%;background:#fff;color:var(--ink);display:grid;place-items:center;font-size:17px;font-weight:800}
+.opt.dim{opacity:.35}
+/* teclado de química */
+.kdisp{display:flex;align-items:center;gap:8px;min-height:64px;border:2px solid var(--line);border-radius:14px;padding:8px 8px 8px 14px;background:var(--surface)}
+.kdisp .f{flex:1;font-family:var(--f-display);font-weight:800;font-size:32px;line-height:1.2;overflow-wrap:anywhere}
+.kdisp .f:empty::before{content:"Arma tu respuesta";color:var(--muted);font:600 16px var(--f-body)}
+.kdisp button{width:52px;height:48px;border-radius:12px;border:1.5px solid var(--line);background:var(--sunk);font-size:20px;cursor:pointer}
+.kgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.kgrid.all{grid-template-columns:repeat(6,1fr);max-height:260px;overflow:auto;padding:2px}
+.k{min-height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-weight:700;font-size:17px;cursor:pointer;touch-action:manipulation;padding:0}
+.k:active{transform:translateY(2px)}
+.k.num{font-family:var(--f-mono);background:var(--sunk)}
+.k.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.krow{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}
+.krow2{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.slval{font-family:var(--f-display);font-weight:800;font-size:46px;text-align:center}
+.slval small{font-size:20px;color:var(--muted);margin-left:6px}
+input[type=range]{width:100%;height:44px;accent-color:var(--o1)}
+.slends{display:flex;justify-content:space-between;font-family:var(--f-mono);color:var(--muted)}
+.ord{display:flex;flex-direction:column;gap:8px}
+.oitem{display:flex;align-items:center;gap:10px;border-radius:14px;color:#fff;padding:8px 8px 8px 14px;font-weight:700;min-height:56px}
+.oitem .txt{flex:1;display:flex;align-items:center;gap:10px}
+.oitem .txt svg{width:30px;height:30px}
+.oitem .pos{font-family:var(--f-mono);background:rgba(255,255,255,.25);border-radius:8px;padding:2px 8px}
+.oitem button{width:44px;height:44px;border-radius:10px;border:0;background:rgba(255,255,255,.9);color:var(--ink);font-size:20px;font-weight:800;cursor:pointer}
+.oitem button:disabled{opacity:.35}
+/* resultados */
+.res{border-radius:24px;padding:26px 18px;color:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.res.ok{background:var(--ok)} .res.bad{background:var(--bad)} .res.neu{background:var(--muted)}
+.res h2{font-size:34px;color:#fff}
+.res .pts{font-family:var(--f-display);font-weight:800;font-size:44px;background:rgba(0,0,0,.18);border-radius:16px;padding:2px 18px}
+.res .rac{font-weight:800}
+.sol{font-size:15px}
+.sol b{font-family:var(--f-mono)}
+.solc{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.solc i{width:44px;height:44px;border-radius:10px;display:grid;place-items:center}
+.solc i svg{width:26px;height:26px}
+.solc span{font-weight:700}
+.big{font-family:var(--f-display);font-weight:800;font-size:56px;line-height:1}
+.pos{font-family:var(--f-display);font-weight:800}
+.troph{width:120px;height:120px;border-radius:50%;display:grid;place-items:center;margin:0 auto;box-shadow:0 0 0 8px var(--sunk)}
+.troph svg{width:64px;height:64px}
+.troph.o{background:var(--oro)} .troph.p{background:var(--plata)} .troph.b{background:var(--bronce)}
+.pc{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:20px;background:var(--gold-soft);border-radius:999px;padding:6px 16px}
+#lento{margin:0;font-size:14px;opacity:0;animation:aparece .2s ease-out 8s forwards!important}
+@keyframes aparece{to{opacity:1}}
+.spin{width:44px;height:44px;border-radius:50%;border:5px solid var(--sunk);border-top-color:var(--ink);animation:spin 1s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.12)}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="live">EN VIVO</span><span>Juego de clase</span></div>
+    <span class="score" id="myScore" hidden></span>
+    <span class="me" id="me" hidden></span>
+  </header>
+  <main id="main" aria-live="polite"><div class="card center grow"><div class="spin" aria-hidden="true"></div><p class="muted">Buscando el juego…</p><p id="lento">¿Tarda mucho? Recarga la página. Si sigue igual, avísale a tu docente.</p></div></main>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, writeBatch, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app=initializeApp({apiKey:"AIzaSyBCIRtkx3CSdYMPOa1-1g1UErGuafZ2_pI",authDomain:"jueguito-8e43b.firebaseapp.com",projectId:"jueguito-8e43b",storageBucket:"jueguito-8e43b.firebasestorage.app",messagingSenderId:"274828350825",appId:"1:274828350825:web:9c9aef9f8f210df9d659f8"});
+const db=getFirestore(app);
+
+/* ---------- utilidades ---------- */
+const $=id=>document.getElementById(id);
+const CODE_RX=/^[A-HJKMNP-Z2-9]{5}$/,GRUPO_RX=/^[0-9A-ZÑ]{1,8}$/,PID_RX=/^[a-z2-9]{20}$/,APODO_RX=/^[a-z2-9]{12}$/,JID_RX=/^[A-HJKMNP-Z2-9]{5}(-[A-HJKMNP-Z2-9]{5}){0,3}$/;
+const int=(v,mx)=>Number.isInteger(v)&&v>=0&&v<=mx?v:0;   // lo que llega de la nube: solo números en rango
+const fmt=n=>Math.round(n).toLocaleString("es-UY");
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+const params=new URLSearchParams(location.search);
+const VOLVER=/^(index|mol)\.html$/.test(params.get("volver")||"")?params.get("volver"):"index.html";
+const buzz=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
+const apodoNuevo=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");
+/* colores con su forma (el color nunca va solo), siempre en el mismo lugar:
+   rojo ▲ arriba a la izquierda, azul ◆ arriba a la derecha, amarillo ● abajo a la izquierda, verde ■ abajo a la derecha */
+const SHAPES=[
+  '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 5l16 29H4z" fill="#fff"/></svg>',
+  '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3l17 17-17 17L3 20z" fill="#fff"/></svg>',
+  '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="#fff"/></svg>',
+  '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="5" width="30" height="30" rx="3" fill="#fff"/></svg>'];
+const COLOR_N=["rojo, triángulo","azul, rombo","amarillo, círculo","verde, cuadrado"];
+const TROFEO=["","oro","plata","bronce"],TRC=["","o","p","b"];
+const TROPHY_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="#fff"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 21h8M9 18h6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+/* ---------- teclado de química: cada tecla es un número (lo mismo que acepta Firebase) ----------
+   1 a 118: elementos (por su Z) · 200 a 209: dígitos · 210 a 219: dígitos de carga · 220: carga + · 221: carga − · 222: «(» · 223: «)» · 224: «·» */
+const SIM=['H','He','Li','Be','B','C','N','O','F','Ne','Na','Mg','Al','Si','P','S','Cl','Ar','K','Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr','Rb','Sr','Y','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I','Xe','Cs','Ba','La','Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu','Hf','Ta','W','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn','Fr','Ra','Ac','Th','Pa','U','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No','Lr','Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og'];
+const TK=(()=>{
+  const SUBD="₀₁₂₃₄₅₆₇₈₉",SUPD="⁰¹²³⁴⁵⁶⁷⁸⁹";
+  const ok=t=>Number.isInteger(t)&&((t>=1&&t<=118)||(t>=200&&t<=224));
+  /* un dígito después de un elemento o de «)» es subíndice; al principio, o después de «·», es coeficiente */
+  function walk(a,f){let sub=false;for(const t of a){if(!ok(t))continue;
+    if(t<=118){f('el',SIM[t-1]);sub=true}
+    else if(t<=209)f(sub?'sub':'n',String(t-200));
+    else if(t<=219)f('sup',String(t-210));
+    else if(t===220)f('sup','+');else if(t===221)f('sup','−');
+    else if(t===222){f('n','(');sub=false}else if(t===223){f('n',')');sub=true}else if(t===224){f('n','·');sub=false}}}
+  function html(a){let h='';walk(a||[],(k,s)=>{h+=k==='sub'?'<sub>'+s+'</sub>':k==='sup'?'<sup>'+s+'</sup>':s});return h}
+  function txt(a){let h='';walk(a||[],(k,s)=>{h+=k==='sub'?SUBD[+s]:k==='sup'?(s==='+'?'⁺':s==='−'?'⁻':SUPD[+s]):s});return h}
+  /* «H2O», «H₂O», «Na+», «SO4^2-», «CuSO4·5H2O» → números; si algo no se puede escribir con el teclado, null */
+  function parse(s){
+    s=String(s||'').trim();if(!s)return null;const out=[];let sup=false;
+    for(let i=0;i<s.length;i++){const c=s[i];
+      if(/\s/.test(c))continue;
+      if(/[A-Z]/.test(c)){const two=c+(s[i+1]||'');let z=/[a-z]/.test(s[i+1]||'')?SIM.indexOf(two):-1;if(z>=0){i++}else z=SIM.indexOf(c);if(z<0)return null;out.push(z+1);sup=false;continue}
+      if(/[0-9]/.test(c)){out.push((sup?210:200)+(+c));continue}
+      if(SUBD.includes(c)){out.push(200+SUBD.indexOf(c));continue}
+      if(SUPD.includes(c)){out.push(210+SUPD.indexOf(c));continue}
+      if(c==='^'){sup=true;continue}
+      if(c==='+'||c==='⁺'){out.push(220);sup=false;continue}
+      if(c==='-'||c==='−'||c==='⁻'){out.push(221);sup=false;continue}
+      if(c==='('){out.push(222);continue}if(c===')'){out.push(223);continue}
+      if(c==='·'||c==='.'||c==='*'){out.push(224);continue}
+      return null}
+    return out.length&&out.length<=24?out:null;
+  }
+  /* Na¹⁺ es lo mismo que Na⁺ */
+  function norm(a){const r=[];(a||[]).forEach((t,i)=>{const p=a[i-1];if(t===211&&(a[i+1]===220||a[i+1]===221)&&!(p>=210&&p<=219))return;r.push(t)});return r}
+  const eq=(a,b)=>JSON.stringify(norm(a))===JSON.stringify(norm(b));
+  return{html,txt,parse,norm,eq,ok};
+})();
+
+/* elementos a la vista en el teclado (los demás, con «Más elementos») */
+const COMUNES=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,26,29,30,47,35,53,56,25,24,28,82,50,79,80];
+
+/* ---------- estado ---------- */
+const S={pid:PID_RX.test(params.get("pid")||"")?params.get("pid"):"",codes:[],ok:{},p:null,jid:null,a:null,r:null,unsubP:null,unsubJ:null,unsubR:null,answered:{},sel:[],ord:null,slider:null,keys:[],sup:false,todos:false,qSeen:-1,qStart:0,lastExtra:0,tick:null,joining:false};
+const own=ls.get("atomoaatomo.sesion");if(own&&CODE_RX.test(own))S.codes.push(own);
+
+/* ---------- pantallas (todo el texto de la pantalla es de esta página; de la nube solo se usan números) ---------- */
+const M=()=>$("main");
+function screen(h){M().innerHTML=h}
+function header(){
+  $("me").hidden=!S.jid;$("me").textContent=S.jid?S.jid.split("-").join(" + "):"";
+  const r=S.r;$("myScore").hidden=!r;if(r)$("myScore").textContent=fmt(int(r.to,1e7))+" pts";
+}
+function errorScreen(t,sub,btn){screen(`<div class="card center grow"><h2>${t}</h2><p class="muted" style="margin:0">${sub||""}</p>${btn===false?"":`<a class="btn primary big" href="${VOLVER}">Volver al juego</a>`}</div>`)}
+/* la partida, revisada: cada campo es un número en su rango */
+function limpiaP(d){if(!d)return null;const ti=Number.isInteger(d.ti)&&d.ti>=-1&&d.ti<=6?d.ti:-1;
+  return{e:int(d.e,5),q:Number.isInteger(d.q)&&d.q>=-1&&d.q<=199?d.q:-1,n:int(d.n,200),ti,no:[2,3,4].includes(d.no)?d.no:0,du:int(d.du,240),ex:int(d.ex,600),
+    t0:d.t0&&d.t0.toMillis?d.t0.toMillis():0,pt:int(d.pt,2),s0:+d.s0||0,s1:+d.s1||0,sp:+d.sp>0?+d.sp:1,sv:+d.sv||0,
+    sc:Array.isArray(d.sc)?d.sc.filter(c=>[0,1,2,3].includes(c)):[],eq:Math.max(1,int(d.eq,4)),gr:Array.isArray(d.gr)?d.gr.filter(g=>GRUPO_RX.test(g)):[]}}
+
+/* ---------- entrar ---------- */
+async function findPartida(){
+  if(S.pid){const d=await getDoc(doc(db,"partidas",S.pid));if(d.exists())return limpiaP(d.data());S.pid=""}
+  /* sin partida: se busca por el grupo del primer código */
+  const c=S.codes[0];if(!c)return null;
+  const a=await getDoc(doc(db,"alumnos",c));if(!a.exists())return null;
+  const g=a.data().g;if(!GRUPO_RX.test(g||""))return null;
+  const v=await getDoc(doc(db,"vivo",g));if(!v.exists())return null;
+  const pid=v.data().pid;if(!PID_RX.test(pid||""))return null;
+  S.pid=pid;const d=await getDoc(doc(db,"partidas",S.pid));return d.exists()?limpiaP(d.data()):null;
+}
+async function start(){
+  try{
+    const p=await findPartida();
+    if(!p||p.e===5){errorScreen("No hay ningún juego abierto","Cuando tu docente empiece un juego para tu grupo, te va a aparecer un aviso en Átomo a Átomo o en Mol a Mol.");return}
+    S.p=p;header();
+    const saved=ls.get("vivo.jug."+S.pid)||"";
+    if(JID_RX.test(saved)){const j=await getDoc(doc(db,"partidas",S.pid,"jug",saved));if(j.exists()&&APODO_RX.test(j.data().a||"")){S.jid=saved;S.a=j.data().a;listen();return}}
+    for(const c of S.codes)await checkCode(c);
+    joinScreen();
+  }catch(e){console.error(e);errorScreen("No hay conexión","Revisa internet y vuelve a intentar.",false);M().insertAdjacentHTML("beforeend",`<button class="btn primary big" id="again">Reintentar</button>`);$("again").addEventListener("click",()=>location.reload())}
+}
+async function checkCode(c){
+  try{const a=await getDoc(doc(db,"alumnos",c));
+    S.ok[c]=!a.exists()?"Ese código no existe":!S.p.gr.includes(a.data().g)?"Ese código no es de un grupo de este juego":true}
+  catch(e){S.ok[c]="No se pudo revisar"}
+}
+function joinScreen(){
+  const max=Math.max(1,Math.min(4,S.p.eq||1));const allOk=S.codes.length&&S.codes.every(c=>S.ok[c]===true);
+  screen(`<div class="card"><h2>Juego de clase</h2>
+    <p class="hint">${max>1?`Puedes jugar solo o en equipo: hasta ${max} códigos en este celular.`:"Entra con tu código."}</p>
+    <div class="codes">${S.codes.map(c=>`<div class="crow"><b>${c}</b><span class="st ${S.ok[c]===true?"ok":"bad"}">${S.ok[c]===true?"✓":(S.ok[c]||"…")}</span><button type="button" data-rm="${c}" aria-label="Quitar ${c}">✕</button></div>`).join("")}</div>
+    ${S.codes.length<max?`<form class="addrow" id="addF"><input id="addIn" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${S.codes.length?"compañero":"código"}" aria-label="${S.codes.length?"Código de un compañero":"Tu código"}"><button class="btn" type="submit">Agregar</button></form>`:""}
+    <p class="msg bad" id="jMsg" role="alert"></p>
+    <button type="button" class="btn primary big" id="joinB" ${allOk?"":"disabled"}>${S.codes.length>1?"Entrar en equipo":"Entrar al juego"}</button>
+    <a class="btn link" href="${VOLVER}">Volver</a></div>`);
+  const f=$("addF");if(f){f.addEventListener("submit",async e=>{e.preventDefault();const v=$("addIn").value.trim().toUpperCase();
+      if(!CODE_RX.test(v)){$("jMsg").textContent=v.length<5?"El código tiene 5 caracteres.":"Revisa el código: no usa O, 0, I, 1 ni L.";return}
+      if(S.codes.includes(v)){$("jMsg").textContent="Ese código ya está.";return}
+      S.codes.push(v);await checkCode(v);joinScreen();const i=$("addIn");i&&i.focus()});
+    $("addIn").addEventListener("input",e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,5)})}
+  M().querySelectorAll("[data-rm]").forEach(b=>b.addEventListener("click",()=>{S.codes=S.codes.filter(c=>c!==b.dataset.rm);joinScreen()}));
+  $("joinB").addEventListener("click",join);
+}
+/* entrar: el jugador y un «candado» por código, juntos (cada código puede estar en un solo jugador de la partida) */
+async function join(){
+  if(S.joining)return;S.joining=true;const b=$("joinB");b.disabled=true;b.textContent="Entrando…";
+  const codes=[...S.codes].sort(),jid=codes.join("-");
+  try{
+    const ref=doc(db,"partidas",S.pid,"jug",jid);const ex=await getDoc(ref);
+    if(ex.exists()&&APODO_RX.test(ex.data().a||""))S.a=ex.data().a;   // ya había entrado desde otro celular
+    else{const a=apodoNuevo(),bt=writeBatch(db);bt.set(ref,{codes,a,t:serverTimestamp()});codes.forEach(c=>bt.set(doc(db,"partidas",S.pid,"cod",c),{j:jid}));await bt.commit();S.a=a}
+    S.jid=jid;ls.set("vivo.jug."+S.pid,jid);buzz(20);listen();
+  }catch(e){console.error(e);$("jMsg").textContent="No se pudo entrar. Puede ser que alguno de esos códigos ya esté jugando en otro celular, o que tu docente lo haya sacado del juego. Pregúntale.";b.disabled=false;b.textContent="Reintentar"}
+  S.joining=false;
+}
+
+/* ---------- escuchar la partida, el propio jugador y el propio resultado ---------- */
+function listen(){
+  S.unsubP&&S.unsubP();S.unsubJ&&S.unsubJ();S.unsubR&&S.unsubR();
+  S.unsubP=onSnapshot(doc(db,"partidas",S.pid),d=>{if(!d.exists()){errorScreen("El juego terminó","");return}S.p=limpiaP(d.data());render()},()=>{});
+  S.unsubJ=onSnapshot(doc(db,"partidas",S.pid,"jug",S.jid),d=>{if(!d.exists()&&S.p&&S.p.e!==5){S.unsubP&&S.unsubP();S.unsubR&&S.unsubR();clearInterval(S.tick);ls.set("vivo.jug."+S.pid,"");errorScreen("Tu docente te sacó del juego","Si fue un error, avísale.")}},()=>{});
+  S.unsubR=onSnapshot(doc(db,"partidas",S.pid,"res",S.a),d=>{const x=d.exists()?d.data():null;
+    S.r=x?{q:Number.isInteger(x.q)?x.q:-1,ok:[-1,0,1,2].includes(x.ok)?x.ok:-1,pt:int(x.pt,1e5),to:int(x.to,1e7),po:int(x.po,9999),ra:int(x.ra,9999),fa:int(x.fa,1e7),ca:x.ca===1,tr:int(x.tr,3),pc:int(x.pc,1e5)}:null;
+    if(S.p&&S.p.e!==1)render();else header()},()=>{});
+}
+function render(){
+  header();const p=S.p,e=p.e;clearInterval(S.tick);
+  if(e===0)return screen(`<div class="card center grow"><div class="big" aria-hidden="true">✓</div><h2>¡Ya estás dentro!</h2><p class="muted" style="margin:0">Mira el proyector. El juego empieza cuando tu docente lo indique.</p></div>`);
+  if(e===1)return renderQ();
+  if(e===2)return renderRes();
+  if(e===3){const r=S.r;return screen(`<div class="card center grow"><p class="muted" style="margin:0">Vas en el puesto</p><div class="big">${r&&r.po?r.po+".º":"—"}</div><p style="margin:0">${r?`${fmt(r.to)} puntos`:""}${r&&r.fa?` · te faltan ${fmt(r.fa)} para pasar al de adelante`:""}</p></div>`)}
+  if(e===4||e===5)return renderFin();
+}
+function bar(){
+  const p=S.p,total=(p.du||20)+(p.ex||0);
+  const left=Math.max(0,total-(Date.now()-S.qStart)/1000);
+  const t=$("tnum"),b=$("tbar");if(t)t.textContent=Math.ceil(left);if(b){b.firstElementChild.style.width=(left/total*100)+"%";b.classList.toggle("low",left<=5)}
+}
+const optBtn=(c,sel,sz)=>`<button type="button" class="opt c${c}${sel?" sel":""}" data-o="${c}" aria-pressed="${!!sel}" aria-label="${COLOR_N[c]}">${SHAPES[c]}</button>`;
+function teclado(){
+  const els=S.todos?[...Array(118).keys()].map(i=>i+1):COMUNES;
+  return `<div class="kdisp"><span class="f" id="kf">${TK.html(S.keys)}</span><button type="button" data-k="del" aria-label="Borrar">⌫</button></div>
+    <div class="kgrid${S.todos?" all":""}" role="group" aria-label="Elementos">${els.map(z=>`<button type="button" class="k" data-k="${z}">${SIM[z-1]}</button>`).join("")}</div>
+    <button type="button" class="btn link" data-k="mas" style="min-height:36px">${S.todos?"Menos elementos":"Más elementos"}</button>
+    <div class="krow" role="group" aria-label="Números">${[1,2,3,4,5,6,7,8,9,0].map(d=>`<button type="button" class="k num" data-k="${(S.sup?210:200)+d}">${S.sup?"⁰¹²³⁴⁵⁶⁷⁸⁹"[d]:d}</button>`).join("")}</div>
+    <div class="krow2"><button type="button" class="k num${S.sup?" on":""}" data-k="sup" aria-label="Escribir la carga" aria-pressed="${S.sup}">x²</button><button type="button" class="k num" data-k="220" aria-label="carga positiva">⁺</button><button type="button" class="k num" data-k="221" aria-label="carga negativa">⁻</button><button type="button" class="k num" data-k="222">(</button><button type="button" class="k num" data-k="223">)</button><button type="button" class="k num" data-k="224" aria-label="punto">·</button></div>`;
+}
+function renderQ(){
+  const p=S.p,n=p.q;
+  if(S.qSeen!==n){S.qSeen=n;S.sel=[];S.ord=null;S.slider=null;S.keys=[];S.sup=false;S.lastExtra=p.ex||0;
+    /* inicio con la hora del servidor si el reloj del celular es razonable; si no, desde que llegó la pregunta */
+    const now=Date.now();S.qStart=p.t0&&Math.abs(now-p.t0)<((p.du||20)+(p.ex||0))*1000?p.t0:now}
+  const showExtra=(p.ex||0)>S.lastExtra;if(showExtra)S.lastExtra=p.ex;
+  const done=S.answered[n]!=null||ls.get(`vivo.a.${S.pid}.${n}`);
+  let h=`<div class="qinfo"><span>Pregunta ${n+1} de ${p.n}</span>${p.pt===2?'<span class="dbl">PUNTOS DOBLES</span>':p.pt===0?'<span class="muted">sin puntos</span>':""}</div>
+    <div class="timer"><div class="tbar" id="tbar"><i></i></div><span class="tnum" id="tnum"></span></div>
+    ${(p.ex||0)?`<span class="extra" ${showExtra?"":'style="animation:none"'}>+${p.ex} s de tiempo extra</span>`:""}`;
+  if(done){h+=`<div class="card center grow"><div class="spin" aria-hidden="true"></div><h2>Respuesta enviada</h2><p class="muted" style="margin:0">Espera el resultado.</p></div>`;screen(h);bar();S.tick=setInterval(bar,250);return}
+  const ti=p.ti,k=p.no;
+  if(ti===0||ti===1||ti===6||ti===2){
+    h+=`<p class="hint" style="text-align:center">${ti===2?"Puede haber más de una correcta: marca todas y envía.":"Toca el color de tu respuesta (mira el proyector)."}</p>
+      <div class="opts${k===2?" n2":""}" role="group" aria-label="Colores">${[0,1,2,3].map(c=>c<k?optBtn(c,S.sel.includes(c)):`<span class="vac"></span>`).join("")}</div>`;
+    if(ti===2)h+=`<button type="button" class="btn primary big" id="sendB" ${S.sel.length?"":"disabled"}>Enviar</button>`;
+  }else if(ti===3){
+    h+=`<div class="card" style="gap:10px">${teclado()}<button type="button" class="btn primary big" id="sendB" ${S.keys.length?"":"disabled"}>Enviar</button></div>`;
+  }else if(ti===4){
+    const lo=Math.min(p.s0,p.s1),hi=Math.max(p.s0,p.s1),st=p.sp>0?p.sp:1;
+    if(S.slider==null)S.slider=+(lo+Math.round((hi-lo)/2/st)*st).toFixed(6);
+    h+=`<div class="card"><div class="slval" id="slv">${String(+S.slider.toFixed(6)).replace(".",",")}</div>
+      <input type="range" id="sl" min="${lo}" max="${hi}" step="${st}" value="${S.slider}" aria-label="Valor">
+      <div class="slends"><span>${String(lo).replace(".",",")}</span><span>${String(hi).replace(".",",")}</span></div>
+      <div class="row" style="display:flex;gap:8px"><button type="button" class="btn" data-st="-1" style="flex:1" aria-label="Menos">−</button><button type="button" class="btn" data-st="1" style="flex:1" aria-label="Más">+</button></div>
+      <button type="button" class="btn primary big" id="sendB">Enviar</button></div>`;
+  }else if(ti===5){
+    if(!S.ord)S.ord=[...Array(k).keys()];
+    h+=`<p class="hint" style="text-align:center">Ordena los colores con las flechas (mira el proyector): arriba va el primero.</p><div class="ord">${S.ord.map((c,i)=>`<div class="oitem" style="background:var(--o${c})"><span class="pos">${i+1}</span><span class="txt">${SHAPES[c]}<span>${COLOR_N[c].split(",")[0]}</span></span><button type="button" data-mv="${i}" data-d="-1" aria-label="Subir" ${i?"":"disabled"}>↑</button><button type="button" data-mv="${i}" data-d="1" aria-label="Bajar" ${i<S.ord.length-1?"":"disabled"}>↓</button></div>`).join("")}</div><button type="button" class="btn primary big" id="sendB">Enviar</button>`;
+  }else h+=`<div class="card center grow"><p class="muted">Mira el proyector.</p></div>`;
+  h+=`<p class="msg bad" id="qMsg" role="alert"></p>`;
+  screen(h);bar();S.tick=setInterval(bar,250);
+  M().querySelectorAll("[data-o]").forEach(b=>b.addEventListener("click",()=>{const c=+b.dataset.o;
+    if(ti===2){S.sel=S.sel.includes(c)?S.sel.filter(x=>x!==c):[...S.sel,c];buzz(8);renderQ();return}
+    send(c)}));
+  M().querySelectorAll("[data-mv]").forEach(b=>b.addEventListener("click",()=>{const i=+b.dataset.mv,j=i+(+b.dataset.d);[S.ord[i],S.ord[j]]=[S.ord[j],S.ord[i]];buzz(8);renderQ()}));
+  M().querySelectorAll("[data-k]").forEach(b=>b.addEventListener("click",()=>{const v=b.dataset.k;
+    if(v==="del")S.keys.pop();else if(v==="sup")S.sup=!S.sup;else if(v==="mas")S.todos=!S.todos;
+    else{const t=+v;if(TK.ok(t)&&S.keys.length<24){S.keys.push(t);if(t===220||t===221)S.sup=false}}
+    buzz(6);renderQ()}));
+  const sl=$("sl");if(sl){const lo=+sl.min,hi=+sl.max,st=+sl.step;const upd=v=>{S.slider=+Math.min(hi,Math.max(lo,+v)).toFixed(6);sl.value=S.slider;$("slv").textContent=String(S.slider).replace(".",",")};
+    sl.addEventListener("input",()=>upd(sl.value));M().querySelectorAll("[data-st]").forEach(b=>b.addEventListener("click",()=>upd(S.slider+(+b.dataset.st)*st)))}
+  const sb=$("sendB");if(sb)sb.addEventListener("click",()=>{
+    if(ti===2)send([...S.sel].sort((a,b)=>a-b));
+    else if(ti===3){if(!S.keys.length){$("qMsg").textContent="Arma tu respuesta con el teclado.";return}send(S.keys.slice(0,24))}
+    else if(ti===4)send(S.slider);
+    else if(ti===5)send(S.ord.slice())});
+}
+/* la respuesta es siempre un número o una lista de números */
+async function send(a){
+  const n=S.p.q;if(S.answered[n]!=null)return;S.answered[n]=a;buzz(25);renderQ();
+  try{await setDoc(doc(db,"partidas",S.pid,"resp",`${n}_${S.jid}`),{j:S.jid,q:n,a,t:serverTimestamp()});ls.set(`vivo.a.${S.pid}.${n}`,"1")}
+  catch(e){console.error(e);delete S.answered[n];if(S.p.e===1&&S.p.q===n){renderQ();const m=$("qMsg");if(m)m.textContent="No llegó tu respuesta: se terminó el tiempo o hubo un problema de conexión."}}
+}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function renderRes(){
+  const p=S.p,r=S.r&&S.r.q===p.q?S.r:null;
+  let cls="neu",title="Sin respuesta";
+  if(r){if(r.ok===1){cls="ok";title=pick(["¡Correcto!","¡Muy bien!","¡Exacto!"])}else if(r.ok===0){cls="bad";title=r.ca?"Casi":"Incorrecto"}else if(r.ok===2){cls="neu";title="¡Gracias por responder!"}}
+  const sub=r&&r.pt>0?`<span class="pts">+${fmt(r.pt)}</span>`:"";
+  const rac=r&&r.ra>=2?`<span class="rac">🔥 Racha de ${r.ra}</span>`:"";
+  let sol="";
+  if((p.ti===0||p.ti===1||p.ti===2)&&p.sc.length)sol=`<div class="card sol"><span class="muted">${p.sc.length>1?"Las correctas":"La correcta"}</span><div class="solc">${p.sc.map(c=>`<i class="c${c}" style="background:var(--o${c})">${SHAPES[c]}</i>`).join("")}</div></div>`;
+  else if(p.ti===5&&p.sc.length)sol=`<div class="card sol"><span class="muted">El orden correcto</span><div class="solc">${p.sc.map((c,i)=>`${i?"<span>→</span>":""}<i style="background:var(--o${c})">${SHAPES[c]}</i>`).join("")}</div></div>`;
+  else if(p.ti===4)sol=`<div class="card sol"><span class="muted">Respuesta correcta</span><b>${String(+p.sv.toFixed(6)).replace(".",",")}</b></div>`;
+  else if(p.ti===3)sol=`<div class="card sol"><span class="muted">La respuesta correcta está en el proyector.</span></div>`;
+  screen(`<div class="res ${cls}" role="status"><h2>${title}</h2>${sub}${rac}</div>${sol}
+    <div class="card center"><p class="muted" style="margin:0">Vas en el puesto</p><div class="big">${r&&r.po?r.po+".º":"—"}</div><p style="margin:0">${r?fmt(r.to)+" puntos":""}</p></div>`);
+  if(r&&r.ok===1)buzz([30,60,30]);
+}
+function renderFin(){
+  const p=S.p,r=S.r,tr=r?r.tr:0;
+  screen(`<div class="card center grow">
+    ${tr?`<div class="troph ${TRC[tr]}">${TROPHY_SVG}</div><h2>¡Trofeo de ${TROFEO[tr]}!</h2>`:`<h2>${p.e===5?"Terminó el juego":"¡Final!"}</h2>`}
+    <p class="muted" style="margin:0">Terminaste en el puesto</p><div class="big">${r&&r.po?r.po+".º":"—"}</div>
+    <p style="margin:0">${r?fmt(r.to)+" puntos":""}</p>
+    ${r&&r.pc?`<span class="pc">+${r.pc} puntos de clase</span><p class="hint">Ya están en tu cuenta: los ves en Átomo a Átomo y en Mol a Mol.</p>`:p.e===4?`<p class="hint">Mira el podio en el proyector.</p>`:""}
+    ${p.e===5?`<a class="btn primary big" href="${VOLVER}">Volver al juego</a>`:""}</div>`);
+}
+start();
+</script>
+</body>
+</html>

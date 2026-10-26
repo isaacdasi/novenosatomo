@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; worker-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="description" content="Mol a Mol ahora está en CREA.">
+<meta name="robots" content="noindex">
+<title>Mol a Mol · ahora en CREA</title>
+<style>
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --sunk:#E7EBF0; --ink:#151E28; --muted:#5B6774; --line:#D2D9E1; --ok:#1E8A4C; --ok-soft:#DCF3E5;
+  --f-display:"Bricolage Grotesque",ui-rounded,"Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E141B; --surface:#17202A; --sunk:#1F2A36; --ink:#E9EEF4; --muted:#9AA7B5; --line:#2C3946; --ok:#4CC27F; --ok-soft:#173526;
+  color-scheme:dark;
+}}
+*{box-sizing:border-box}
+body{min-height:100vh;min-height:100dvh}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.55;
+  display:grid;place-items:center;padding:max(24px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));-webkit-text-size-adjust:100%}
+main{width:100%;max-width:440px;background:var(--surface);border:2px solid var(--ink);border-radius:24px;padding:32px 28px 28px;
+  box-shadow:0 6px 0 var(--ink);text-align:center}
+.marca{font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:.02em;color:var(--muted);margin:0 0 20px}
+.icono{width:76px;height:76px;margin:0 auto 18px;border-radius:22px;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center}
+.icono svg{width:42px;height:42px}
+h1{font-family:var(--f-display);font-size:30px;line-height:1.12;margin:0 0 12px;text-wrap:balance}
+p{margin:0 0 14px;color:var(--ink)}
+p.sec{color:var(--muted);font-size:15px;margin:0}
+</style>
+</head>
+<body>
+<main>
+  <p class="marca">Mol a Mol</p>
+  <div class="icono" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/><path d="m7.5 5.5 9 5"/>
+    </svg>
+  </div>
+  <h1>Este juego se mudó a CREA</h1>
+  <p>Mol a Mol ya no se juega desde esta página. Ahora lo encuentras en <b>CREA</b>, dentro del curso de tu docente.</p>
+  <p class="sec">En CREA tu progreso se guarda en tu cuenta, así que puedes seguir desde cualquier dispositivo. El avance que tenías aquí no pasa a CREA, pero ya está registrado como tarea.</p>
+</main>
+<script>
+/* Las versiones anteriores dejaban una copia del juego guardada en el dispositivo (service worker).
+   Se quita, para que nadie siga viendo el juego viejo en lugar de este aviso. */
+try{
+  if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+  if(window.caches)caches.keys().then(ks=>ks.forEach(k=>caches.delete(k))).catch(()=>{});
+}catch(e){}
+</script>
+</body>
+</html>
